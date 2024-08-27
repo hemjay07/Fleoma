@@ -1,23 +1,36 @@
 import { Mesh, Program } from "ogl";
 import GSAP from "gsap";
 
-export default class Media {
+import vertex from "shaders/collections-vertex.glsl";
+import fragment from "shaders/collections-fragment.glsl";
+export default class {
   constructor({ element, geometry, gl, index, scene, sizes }) {
     this.element = element;
-    this.gl = gl;
-    this.geometry = geometry;
-    this.scene = scene;
-    this.index = index;
-    this.sizes = sizes;
 
-    this.createTexture();
-    this.createProgram();
-    this.createMesh();
+    this.geometry = geometry;
+    this.gl = gl;
+    this.index = index;
+    this.scene = scene;
+    this.sizes = sizes;
 
     this.extra = {
       x: 0,
       y: 0,
     };
+
+    this.opacity = {
+      current: 0,
+      target: 0,
+      lerp: 0.1,
+      multiplier: 0,
+    };
+
+    this.createTexture();
+    this.createProgram();
+    this.createMesh();
+    this.createBounds({
+      sizes: this.sizes,
+    });
   }
 
   createTexture() {
@@ -28,41 +41,15 @@ export default class Media {
 
   createProgram() {
     this.program = new Program(this.gl, {
-      vertex: `
-      attribute vec3 position;
-      attribute vec2 uv;
-
-      uniform mat4 modelViewMatrix;
-      uniform mat4 projectionMatrix;
-
-      varying vec2 vUv;
-
-      void main() {
-        vUv = uv;
-
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-
-      `,
-      fragment: `
-      precision highp float;
-
-      uniform float uAlpha;
-      uniform sampler2D tMap;
-
-      varying vec2 vUv;
-
-      void main() {
-        vec4 texture = texture2D(tMap, vUv);
-
-        gl_FragColor = texture;
-        gl_FragColor.a = uAlpha;
-      }
-
-      `,
-      uniforms: { tMap: { value: this.texture }, uAlpha: { value: 0 } },
+      fragment,
+      vertex,
+      uniforms: {
+        uAlpha: { value: 0 },
+        tMap: { value: this.texture },
+      },
     });
   }
+
   createMesh() {
     this.mesh = new Mesh(this.gl, {
       geometry: this.geometry,
@@ -74,29 +61,29 @@ export default class Media {
 
   createBounds({ sizes }) {
     this.sizes = sizes;
+
     this.bounds = this.element.getBoundingClientRect();
 
     this.updateScale();
     this.updateX();
-    this.updateY();
   }
 
   // Animations
   show() {
     GSAP.fromTo(
-      this.program.uniforms.uAlpha,
+      this.opacity,
       {
-        value: 0,
+        multiplier: 0,
       },
       {
-        value: 1,
+        multiplier: 1,
       }
     );
   }
 
   hide() {
-    GSAP.to(this.program.uniforms.uAlpha, {
-      value: 0,
+    GSAP.to(this.opacity, {
+      multiplier: 0,
     });
   }
 
@@ -110,7 +97,6 @@ export default class Media {
 
     this.createBounds(sizes);
     this.updateX(scroll && scroll.x);
-    this.updateY(scroll && scroll.y);
   }
 
   // Loop.
@@ -129,16 +115,27 @@ export default class Media {
     this.mesh.position.x = (-this.sizes.width / 2) + (this.mesh.scale.x / 2) + (this.x  * this.sizes.width) + this.extra.x; // prettier-ignore
   }
 
-  updateY(y = 0) {
-    this.y = (this.bounds.top + y) / window.innerHeight;
-
-    this.mesh.position.y = (this.sizes.height / 2) - (this.mesh.scale.y / 2) - (this.y  * this.sizes.height) + this.extra.y; // prettier-ignore
-  }
-
-  update(scroll) {
-    if (!this.bounds) return;
-
+  update(scroll, index) {
     this.updateX(scroll);
-    this.updateY();
+
+    const amplitude = 0.1;
+    const frequency = 1;
+
+    this.mesh.rotation.z = -0.02 * Math.PI * Math.sin(this.index / frequency);
+    this.mesh.rotation.y = amplitude * Math.sin(this.index / frequency);
+
+    this.opacity.target = index === this.index ? 1 : 0.4;
+    this.opacity.current = GSAP.utils.interpolate(
+      this.opacity.current,
+      this.opacity.target,
+      this.opacity.lerp
+    );
+
+    // console.log(this.opacity.current);
+
+    // The multiplier is the animation in and out  while the current is how much opacity you want to apply to each of the elements
+    this.program.uniforms.uAlpha.value = this.opacity.multiplier;
+    this.program.uniforms.uAlpha.value =
+      this.opacity.multiplier * this.opacity.current;
   }
 }

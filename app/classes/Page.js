@@ -8,7 +8,7 @@ import Label from "../animations/Label.js";
 import Paragraphs from "../animations/Paragraph.js";
 import Highlight from "../animations/Highlight.js";
 
-import { ColorsManager } from "./colors.js";
+import { ColorsManager } from "./Colors.js";
 
 import AsyncLoad from "../classes/AsyncLoad.js";
 
@@ -76,7 +76,6 @@ export default class Page {
     // console.log("Create", this.id, this.element, this.elements);
 
     this.createAnimations();
-    this.createPreloader();
   }
 
   createAnimations() {
@@ -116,25 +115,27 @@ export default class Page {
   }
 
   // Animations
-  show() {
+  show(animation) {
     return new Promise((resolve) => {
       ColorsManager.change({
         backgroundColor: this.element.getAttribute("data-background"),
         color: this.element.getAttribute("data-color"),
       });
 
-      this.animationIn = GSAP.timeline();
-
-      this.animationIn.fromTo(
-        this.element,
-        {
-          autoAlpha: 0,
-        },
-        {
-          autoAlpha: 1,
-          onComplete: resolve,
-        }
-      );
+      if (animation) {
+        this.animationIn = animation;
+      } else {
+        this.animationIn = GSAP.timeline();
+        this.animationIn.fromTo(
+          this.element,
+          {
+            autoAlpha: 0,
+          },
+          {
+            autoAlpha: 1,
+          }
+        );
+      }
 
       this.animationIn.call((_) => {
         this.addEventListeners();

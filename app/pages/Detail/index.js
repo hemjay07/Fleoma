@@ -1,4 +1,5 @@
-import Button from "classes/Page.js";
+import GSAP from "gsap";
+import Button from "classes/Button.js";
 import Page from "classes/Page.js";
 
 export default class Detail extends Page {
@@ -6,14 +7,34 @@ export default class Detail extends Page {
     super({
       id: "detail",
       element: ".detail",
-      elements: { button: ".detail__button" },
+      elements: {
+        button: ".detail__button",
+      },
+    });
+  }
+  create() {
+    super.create();
+    this.link = new Button({
+      element: this.elements.button,
     });
   }
 
-  create() {
-    super.create();
+  show() {
+    const timeline = GSAP.timeline({
+      delay: 2,
+    });
 
-    this.link = new Button({ element: this.elements.button });
+    timeline.fromTo(
+      this.element,
+      {
+        autoAlpha: 0,
+      },
+      {
+        autoAlpha: 1,
+      }
+    );
+
+    super.show(timeline);
   }
 
   destroy() {

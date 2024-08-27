@@ -80,8 +80,6 @@ export default class Gallery {
   onTouchUp({ x, y }) {}
 
   update(scroll) {
-    if (!this.bounds) return;
-
     const distance = scroll.current - scroll.target;
     const y = scroll.current / window.innerHeight;
 

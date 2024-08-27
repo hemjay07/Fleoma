@@ -9,16 +9,21 @@ import Prefix from "prefix";
 import Media from "./Media.js";
 
 export default class {
-  constructor({ gl, scene, sizes }) {
+  constructor({ gl, scene, sizes, transition }) {
+    this.id = "collections";
+
+    console.log("conllection canvas");
+
     this.gl = gl;
     this.scene = scene;
     this.sizes = sizes;
+    this.transition = transition;
 
     this.transformPrefix = Prefix("transform");
 
     this.group = new Transform();
 
-    this.galleryElement = document.querySelector( '.collections__gallery' ); // prettier-ignore
+    this.galleryElement = document.querySelector('.collections__gallery'); // prettier-ignore
     this.galleryWrapperElement = document.querySelector( '.collections__gallery__wrapper' ); // prettier-ignore
 
     this.titlesElement = document.querySelector(".collections__titles");
@@ -46,6 +51,10 @@ export default class {
     this.group.setParent(this.scene);
 
     this.show();
+
+    this.onResize({
+      sizes: this.sizes,
+    });
   }
 
   createGeometry() {
@@ -66,8 +75,37 @@ export default class {
   }
 
   // Animations
-  show() {
-    _.map(this.medias, (media) => media.show());
+  async show() {
+    if (this.transition) {
+      const { src } = this.transition.mesh.program.uniforms.tMap.value.image;
+      const texture = window.TEXTURES[src];
+      const media = this.medias.find((media) => media.texture === texture);
+
+      const scroll = -media.bounds.left - media.bounds.width / 2 + window.innerWidth / 2; // prettier-ignore
+
+      this.update();
+
+      this.transition.animate(
+        {
+          position: { x: 0, y: media.mesh.position.y, z: 0 },
+          rotation: media.mesh.rotation,
+          scale: media.mesh.scale,
+        },
+        (_) => {
+          media.opacity.multiplier = 1;
+
+          map(this.medias, (item) => {
+            if (media !== item) {
+              item.show();
+            }
+          });
+
+          this.scroll.current = this.scroll.target = this.scroll.start = this.scroll.last = scroll; // prettier-ignore
+        }
+      );
+    } else {
+      _.map(this.medias, (media) => media.show());
+    }
   }
 
   hide() {
@@ -76,14 +114,14 @@ export default class {
 
   // Events
 
-  onResize(e) {
-    this.sizes = e.sizes;
+  onResize(event) {
+    this.sizes = event.sizes;
 
     this.bounds = this.galleryWrapperElement.getBoundingClientRect();
 
     this.scroll.last = this.scroll.target = 0;
 
-    _.map(this.medias, (media) => media.onResize(e, this.scroll));
+    _.map(this.medias, (media) => media.onResize(event, this.scroll));
 
     this.scroll.limit = this.bounds.width - this.medias[0].element.clientWidth;
   }
@@ -107,6 +145,9 @@ export default class {
   //   Changed
   onChange(index) {
     this.index = index;
+
+    console.log(index);
+
     const selectedCollection = parseInt(this.mediasElements[this.index].getAttribute('data-index')); // prettier-ignore
 
     _.map(this.collectionsElements, (element, elementIndex) => {
@@ -117,14 +158,12 @@ export default class {
       }
     });
 
-    this.titlesElement.style[this.transformPrefix] = `translateY(-${25 * selectedCollection}%) translate(-50%, -50%) rotate(-90deg)`; // prettier-ignore
+    this.titlesElement.style[this.transformPrefix] = `translateY(-${ 25 * selectedCollection }%) translate(-50%, -50%) rotate(-90deg)`; // prettier-ignore
   }
 
   // Update
 
   update() {
-    if (!this.bounds) return;
-
     this.scroll.target = GSAP.utils.clamp(-this.scroll.limit, 0, this.scroll.target); // prettier-ignore
 
     this.scroll.current = GSAP.utils.interpolate( this.scroll.current, this.scroll.target, this.scroll.lerp ); // prettier-ignore
@@ -132,22 +171,25 @@ export default class {
     this.galleryElement.style[this.transformPrefix] = `translateX(${this.scroll.current}px)`; // prettier-ignore
 
     if (this.scroll.last < this.scroll.current) {
-      this.x.direction = "right";
+      this.scroll.direction = "right";
     } else if (this.scroll.last > this.scroll.current) {
-      this.x.direction = "left";
+      this.scroll.direction = "left";
     }
 
     this.scroll.last = this.scroll.current;
 
-    _.map(this.medias, (media, index) => {
-      media.update(this.scroll.current);
-    });
-
-    const index = Math.floor(Math.abs(this.scroll.current / this.scroll.limit) * this.medias.length) // prettier-ignore
+    const index = Math.floor( Math.abs( (this.scroll.current - this.medias[0].bounds.width / 2) / this.scroll.limit ) * (this.medias.length - 1) ); // prettier-ignore
 
     if (this.index !== index) {
       this.onChange(index);
     }
+
+    _.map(this.medias, (media, index) => {
+      media.update(this.scroll.current, this.index);
+
+      media.mesh.rotation.z = Math.abs( GSAP.utils.mapRange(0, 1, -0.2, 0.2, index / (this.medias.length - 1)) ) - 0.1; // prettier-ignore
+
+      media.mesh.position.y += Math.cos((media.mesh.position.x / this.sizes.width) * Math.PI * 0.1) * 40 - 40; }); // prettier-ignore
   }
 
   // Destroy

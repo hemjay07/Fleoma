@@ -21,7 +21,7 @@ export default class Preloader extends Components {
 
     this.canvas = canvas;
     window.TEXTURES = {};
-    console.log(window.TEXTURES);
+    // console.log(window.TEXTURES);
 
     // split twice thereby burying each line in 2 layers of span
     split({

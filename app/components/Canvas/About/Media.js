@@ -2,6 +2,9 @@ import GSAP from "gsap";
 
 import { Mesh, Program } from "ogl";
 
+import vertex from "shaders/plane-vertex.glsl";
+import fragment from "shaders/plane-fragment.glsl";
+
 export default class {
   constructor({ element, geometry, gl, index, scene, sizes }) {
     this.element = element;
@@ -11,10 +14,11 @@ export default class {
     this.scene = scene;
     this.sizes = sizes;
 
+    this.extra = { x: 0, y: 0 };
+
     this.createTexture();
     this.createProgram();
     this.createMesh();
-    this.extra = 0;
     this.createBounds({ sizes: this.sizes });
   }
 
@@ -22,6 +26,7 @@ export default class {
     const image = this.element.querySelector("img");
 
     this.texture = window.TEXTURES[image.getAttribute("data-src")];
+    console.log(this.texture);
 
     // this.image.onload = () => {
     //   // console.log(this.texture.image);
@@ -30,39 +35,12 @@ export default class {
   }
   createProgram() {
     this.program = new Program(this.gl, {
-      vertex: `
-      attribute vec3 position;
-      attribute vec2 uv;
-
-      uniform mat4 modelViewMatrix;
-      uniform mat4 projectionMatrix;
-
-      varying vec2 vUv;
-
-      void main() {
-        vUv = uv;
-
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-
-      `,
-      fragment: `
-      precision highp float;
-
-      uniform float uAlpha;
-      uniform sampler2D tMap;
-
-      varying vec2 vUv;
-
-      void main() {
-        vec4 texture = texture2D(tMap, vUv);
-
-        gl_FragColor = texture;
-         gl_FragColor.a = uAlpha;
-      }
-
-      `,
-      uniforms: { tMap: { value: this.texture }, uAlpha: { value: 0 } },
+      fragment,
+      vertex,
+      uniforms: {
+        uAlpha: { value: 0 },
+        tMap: { value: this.texture },
+      },
     });
   }
 
@@ -164,7 +142,6 @@ export default class {
   }
 
   update(scroll) {
-    if (!this.bounds) return;
     this.updateRotation();
     this.updateX(scroll);
     this.updateY(0);

@@ -2,6 +2,9 @@ import GSAP from "gsap";
 
 import { Mesh, Program } from "ogl";
 
+import fragment from "shaders/home-fragment.glsl";
+import vertex from "shaders/home-vertex.glsl";
+
 export default class {
   constructor({ element, geometry, gl, index, scene, sizes }) {
     this.element = element;
@@ -10,10 +13,12 @@ export default class {
     this.index = index;
     this.scene = scene;
     this.sizes = sizes;
+
+    this.extra = { x: 0, y: 0 };
+
     this.createTexture();
     this.createProgram();
     this.createMesh();
-    this.extra = { x: 0, y: 0 };
   }
 
   createTexture() {
@@ -22,39 +27,14 @@ export default class {
   }
   createProgram() {
     this.program = new Program(this.gl, {
-      vertex: `
-      attribute vec3 position;
-      attribute vec2 uv;
-
-      uniform mat4 modelViewMatrix;
-      uniform mat4 projectionMatrix;
-
-      varying vec2 vUv;
-
-      void main() {
-        vUv = uv;
-
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-
-      `,
-      fragment: `
-      precision highp float;
-
-      uniform float uAlpha;
-      uniform sampler2D tMap;
-
-      varying vec2 vUv;
-
-      void main() {
-        vec4 texture = texture2D(tMap, vUv);
-
-        gl_FragColor = texture;
-        gl_FragColor.a = uAlpha;
-      }
-
-      `,
-      uniforms: { tMap: { value: this.texture }, uAlpha: { value: 0 } },
+      fragment,
+      vertex,
+      uniforms: {
+        uAlpha: { value: 0 },
+        uSpeed: { value: 0 },
+        uViewportSizes: { value: [this.sizes.width, this.sizes.height] },
+        tMap: { value: this.texture },
+      },
     });
   }
 
@@ -87,7 +67,7 @@ export default class {
         value: 0,
       },
       {
-        value: 1,
+        value: 0.4,
       }
     );
   }
@@ -141,9 +121,10 @@ export default class {
       this.extra.y;
   }
 
-  update(scroll) {
-    if (!this.bounds) return;
+  update(scroll, speed) {
     this.updateX(scroll.x);
     this.updateY(scroll.y);
+
+    this.program.uniforms.uSpeed.value = speed;
   }
 }

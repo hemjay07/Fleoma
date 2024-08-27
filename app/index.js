@@ -26,6 +26,8 @@ class App {
     this.addEventListeners();
     this.addLinkListeners();
 
+    this.onResize();
+
     this.update();
   }
 
@@ -45,9 +47,9 @@ class App {
 
   // Events
   onPreloaded() {
-    this.canvas.onPreloaded();
-
     this.onResize();
+
+    this.canvas.onPreloaded();
 
     this.page.show();
   }
@@ -77,7 +79,8 @@ class App {
   }
 
   async onChange({ url, push = true }) {
-    this.canvas.onChangeStart(this.template);
+    this.canvas.onChangeStart(this.template, url);
+    console.log(url);
     await this.page.hide(); // Hide the current page before fetching the new page.
 
     // Once a link is clicked, instead of going to the routing to the page, we fetch the page and replace the content of the current page with the content of this new page.
@@ -115,7 +118,7 @@ class App {
       this.canvas.onChangeEnd(this.template);
 
       // update the list of links since we have new links in the new page.
-      this.addLinkListeners;
+      this.addLinkListeners();
     } else {
       console.log("Error");
     }

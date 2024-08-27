@@ -1,8 +1,12 @@
+import GSAP from "gsap";
+
 import { Camera, Renderer, Transform } from "ogl";
 
 import About from "./About/index.js";
 import Home from "./Home/index.js";
 import Collections from "./Collections/index.js";
+import Detail from "./Detail/index.js";
+import Transition from "./Transition.js";
 
 export default class Canvas {
   constructor({ template }) {
@@ -79,6 +83,7 @@ export default class Canvas {
       gl: this.gl,
       scene: this.scene,
       sizes: this.sizes,
+      transition: this.transition,
     });
   }
 
@@ -89,12 +94,29 @@ export default class Canvas {
     this.collections = null;
   }
 
+  //  Detail
+  createDetail() {
+    this.detail = new Detail({
+      gl: this.gl,
+      scene: this.scene,
+      sizes: this.sizes,
+      transition: this.transition,
+    });
+  }
+
+  destroyDetail() {
+    if (!this.detail) return;
+
+    this.detail.destroy();
+    this.detail = null;
+  }
+
   // Events
 
   onPreloaded() {
     this.onChangeEnd(this.template);
   }
-  onChangeStart() {
+  onChangeStart(template, url) {
     if (this.home) {
       this.home.hide();
     }
@@ -105,6 +127,28 @@ export default class Canvas {
 
     if (this.collections) {
       this.collections.hide();
+    }
+
+    if (this.detail) {
+      this.detail.hide();
+    }
+
+    // this helps to check if the user is going from the collection to the detail page or otherwise
+    this.isFromCollectionsToDetail =
+      this.template === "collections" && url.indexOf("detail") > -1;
+
+    this.isDetailToCollections =
+      this.template === "detail" && url.indexOf("collections") > -1;
+
+    if (this.isFromCollectionsToDetail || this.isDetailToCollections) {
+      this.transition = new Transition({
+        collections: this.collections,
+        gl: this.gl,
+        scene: this.scene,
+        url,
+      });
+
+      this.transition.setElement(this.collections || this.detail);
     }
   }
   onChangeEnd(template) {
@@ -121,14 +165,20 @@ export default class Canvas {
       this.destroyAbout();
     }
 
+    if (template === "detail") {
+      this.createDetail();
+    } else if (this.detail) {
+      this.destroyDetail();
+    }
+
     if (template === "collections") {
       // make the canvas on top of the other elements in the page
-      this.gl.canvas.style.zIndex = 1000;
       this.createCollections();
     } else {
-      this.gl.canvas.style.zIndex = "";
       this.destroyCollections();
     }
+
+    this.template = template;
   }
 
   onResize() {
@@ -144,6 +194,10 @@ export default class Canvas {
       height,
       width,
     };
+
+    if (this.detail) {
+      this.detail.onResize({ sizes: this.sizes });
+    }
 
     if (this.home) {
       console.log("resize home", this.template);
